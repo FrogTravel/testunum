@@ -9,8 +9,8 @@ typedef struct _posit32 {
 } posit;
 
 int sizeOfPosit = 8;
-int es = 2;// максимум 4 иначе не влезет
-int useed = 16;
+int es = 2;// максимум 4 иначе не влезет в 32
+int useed = 16;// 2 ^ (2 ^ es)
 
 /**
  * 128 - 10000000
@@ -176,9 +176,38 @@ int numberOfDigitsInNumber(int number) {
     return result;
 }
 
+/**
+ * TODO а что если число regime начиналось на 0, тогда при сложении новых нулей не прибавится. Какой тогда должен быть размер
+ * Нужно генерировать новый regime в таком случае?
+ * @param number
+ * @return
+ */
+int sizeOfNumberInBinary(int number) {
+    int result = 0;
+    while (number > 0) {
+        number >>= 1;
+        result++;
+    }
+    return result;
+}
+
+uint32_t getRegimeFromValue(int number){
+    uint32_t result = 0;
+    if(number >= 0){
+        result = 1;
+        for(int i = number; i > 0; i--){
+            result = result << 1;
+            result |= 1;
+        }
+        result = result << 1;
+    }
+    return result;
+}
 
 /**
- * TODO проверить нужно ли сортировать
+ * Здесь не нужно так много переменных, но мне так удобнее ориентироваться в происходящем
+ * По выведенной формуле. Самое сложное - разобраться с fraction так как он точно перевалит и нужно
+ * откинуть лишние биты
  *
  * @param valueA
  * @param valueB
@@ -201,13 +230,27 @@ posit multiplication(posit valueA, posit valueB) {
     uint32_t expLeft = getExponent(a);
     uint32_t expRight = getExponent(b);
 
+    uint32_t fractionLeft = getFraction(a);
+    uint32_t fractionRight = getFraction(b);
 
-    uint32_t resultSign = signLeft | signRight;
-    uint32_t regimeResult = regimeLeft + regimeRight;
+    uint32_t fractionSizeLeft = getFractionSize(a);
+    uint32_t fractionSizeRight = getFractionSize(b);
+
+    uint32_t signResult = signLeft | signRight;
+    uint32_t regimeResult = getRegimeFromValue(regimeLeft + regimeRight);
     uint32_t expResult = expLeft + expRight;
+    uint32_t fracTemp1 = fractionLeft << fractionSizeRight;
+    uint32_t fracTemp2 = fractionRight << fractionSizeLeft;
+    uint32_t fracTemp3 = fractionLeft * fractionRight;
+    uint32_t fractionResultTemp = fracTemp1 + fracTemp2 + fracTemp3;
+
+    uint32_t sizeOfResultFraction = sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult);
+    uint32_t fractionResult = fractionResultTemp >> (int) fabs(sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction);
 
     posit result = {
-            resultSign << sizeOfPosit | regimeResult << (sizeOfPosit - 1 - numberOfDigitsInNumber(regimeResult))};
+            regimeResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult)) |
+            expResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult)) |
+            (fractionResult)};
 
     return result;
 }
@@ -222,16 +265,45 @@ void printPosit(posit number) {
     double exponentPart = pow(2, exponent);
     double fractionPart = 1 + (fraction / (pow(2, fractionSize)));
 
-    double result =  useedPart * exponentPart * fractionPart;
+    double result = useedPart * exponentPart * fractionPart;
 
     printf("%f", result);
 }
+
+void printAdditionPosit(posit a, posit b, posit result) {
+    printf("Addition: ");
+    printPosit(a);
+    printf(" + ");
+    printPosit(b);
+    printf(" = ");
+    printPosit(result);
+    printf("\n");
+}
+
+void printMultiplicationPosit(posit a, posit b, posit result) {
+    printf("Multiplication: ");
+    printPosit(a);
+    printf(" * ");
+    printPosit(b);
+    printf(" = ");
+    printPosit(result);
+    printf("\n");
+}
+
 
 int main() {
     posit a = {72};
     posit b = {78};
 
-    printPosit(b);
+    posit result = multiplication(a, b);
+
+    printMultiplicationPosit(a, b, result);
+
+//    posit a = {86};
+//    posit b = {92};
+//
+//    printPosit(a);
+//    printPosit(b);
 
     return 0;
 }
