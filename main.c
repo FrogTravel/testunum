@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 
 typedef struct _posit32 {
     /** implement your code **/
@@ -17,7 +18,7 @@ int useed = 16;
  * @param number posit type for which we want the bit
  * @return the bit for specified number
  */
-uint32_t getBitOnPosition(int position, posit number){
+uint32_t getBitOnPosition(int position, posit number) {
     return ((number.val << position) & 128) >> (sizeOfPosit - 1);
 }
 
@@ -27,7 +28,7 @@ uint32_t getBitOnPosition(int position, posit number){
  * @param num posit to work with
  * @return sign of the posit
  */
-uint32_t getSign(posit num){
+uint32_t getSign(posit num) {
     return num.val >> (sizeOfPosit - 1);
 }
 
@@ -37,11 +38,11 @@ uint32_t getSign(posit num){
  * @param num posit type that we want to work with
  * @return the size of the regime without the last bit
  */
-uint32_t getRegimeSize(posit num){
+uint32_t getRegimeSize(posit num) {
     uint32_t firstbit = getBitOnPosition(1, num);
     int currentShift = 2;
     int sizeOfRegime = 1;
-    while(getBitOnPosition(currentShift++, num) == firstbit){
+    while (getBitOnPosition(currentShift++, num) == firstbit) {
         sizeOfRegime++;
     }
     return sizeOfRegime;
@@ -52,9 +53,9 @@ uint32_t getRegimeSize(posit num){
  * es + 1 -> in case if it is 2 in binary it will become 11; in case if it is 1 it will be still only one 1
  * @return the mask for the exponent
  */
-uint32_t getExponentMask(){
+uint32_t getExponentMask() {
     int temp = es;
-    if(es == 2){
+    if (es == 2) {
         temp++;
     }
     return (temp << (sizeOfPosit - es));
@@ -64,7 +65,7 @@ uint32_t getExponentMask(){
  * Returns size of exponent
  * By now it is very silly function
  */
-uint32_t getExponentSize(){
+uint32_t getExponentSize() {
     return es;
 }
 
@@ -76,7 +77,7 @@ uint32_t getExponentSize(){
  * @param num with what we will work
  * @return value of exponent
  */
-uint32_t getExponent(posit num){
+uint32_t getExponent(posit num) {
     uint32_t regimeSize = getRegimeSize(num) + 1;
 
     uint32_t first_num = (num.val << (regimeSize + 1));
@@ -92,16 +93,16 @@ uint32_t getExponent(posit num){
  * @param number - value to generate
  * @return mask in format 11
  */
-uint32_t getMaskFromInt(int number){
+uint32_t getMaskFromInt(int number) {
     uint32_t result = 0;
-    for(int i = 0; i < number; i++){
+    for (int i = 0; i < number; i++) {
         result = result << 1;
         result |= 1;
     }
     return result;
 }
 
-uint32_t getFractionSize(posit num){
+uint32_t getFractionSize(posit num) {
     return sizeOfPosit - getExponentSize() - 1 /*size of sign*/ - getRegimeSize(num) - 1;
 }
 
@@ -110,27 +111,27 @@ uint32_t getFractionSize(posit num){
  * @param num
  * @return
  */
-uint32_t getFraction(posit num){
+uint32_t getFraction(posit num) {
     int sizeOfFraction = sizeOfPosit - getExponentSize() - 1 /*size of sign*/ - getRegimeSize(num) - 1;
     return num.val & getMaskFromInt(sizeOfFraction);
 }
 
-int intPow(int base, int p){
-    if(p != 0) {
+int intPow(int base, int p) {
+    if (p != 0) {
         return intPow(base * base, p - 1);
-    }else{
+    } else {
         return base;
     }
 }
 
 
-uint32_t getRegime(posit num){
+uint32_t getRegime(posit num) {
     uint32_t firstBit = getBitOnPosition(1, num);
     uint32_t regimeSize = getRegimeSize(num);
 
-    if(firstBit == 1){
+    if (firstBit == 1) {
         return regimeSize - 1;
-    }else{//if 0
+    } else {//if 0
         return -regimeSize;
     }
 }
@@ -139,10 +140,10 @@ uint32_t getRegime(posit num){
  * TODO проверить сортировку двух чисел по убыванию
  * @return
  */
-posit addition(posit valueA, posit valueB){
+posit addition(posit valueA, posit valueB) {
     posit a = valueA;
     posit b = valueB;
-    if(valueA.val < valueB.val) {
+    if (valueA.val < valueB.val) {
         posit a = valueB;
         posit b = valueA;
     }
@@ -155,7 +156,7 @@ posit addition(posit valueA, posit valueB){
 
     uint32_t expLeft = getExponent(a);
     uint32_t expRight = getExponent(b);
-    
+
     uint32_t howMuchToShift = (regimeLeft - regimeRight) * intPow(2, es) + (expLeft - expRight);
 
     uint32_t shiftedFraction = b_frac >> howMuchToShift;
@@ -163,6 +164,15 @@ posit addition(posit valueA, posit valueB){
     uint32_t resultFraction = (shiftedFraction + a_frac) & getMaskFromInt(3);
 
     posit result = {(a.val & (getMaskFromInt(5) << 3)) | resultFraction};
+    return result;
+}
+
+int numberOfDigitsInNumber(int number) {
+    int result = 0;
+    while (number > 0) {
+        number /= 10;
+        result++;
+    }
     return result;
 }
 
@@ -174,22 +184,54 @@ posit addition(posit valueA, posit valueB){
  * @param valueB
  * @return
  */
-posit multiplication (posit valueA, posit valueB){
+posit multiplication(posit valueA, posit valueB) {
     posit a = valueA;
     posit b = valueB;
-    if(valueA.val < valueB.val) {
+    if (valueA.val < valueB.val) {
         posit a = valueB;
         posit b = valueA;
     }
 
+    uint32_t signLeft = getSign(a);
+    uint32_t signRight = getSign(b);
 
+    uint32_t regimeLeft = getRegime(a);
+    uint32_t regimeRight = getRegime(b);
+
+    uint32_t expLeft = getExponent(a);
+    uint32_t expRight = getExponent(b);
+
+
+    uint32_t resultSign = signLeft | signRight;
+    uint32_t regimeResult = regimeLeft + regimeRight;
+    uint32_t expResult = expLeft + expRight;
+
+    posit result = {
+            resultSign << sizeOfPosit | regimeResult << (sizeOfPosit - 1 - numberOfDigitsInNumber(regimeResult))};
+
+    return result;
+}
+
+void printPosit(posit number) {
+    uint32_t regime = getRegime(number);
+    uint32_t exponent = getExponent(number);
+    uint32_t fraction = getFraction(number);
+    uint32_t fractionSize = getFractionSize(number);
+
+    double useedPart = pow(useed, regime);
+    double exponentPart = pow(2, exponent);
+    double fractionPart = 1 + (fraction / (pow(2, fractionSize)));
+
+    double result =  useedPart * exponentPart * fractionPart;
+
+    printf("%f", result);
 }
 
 int main() {
     posit a = {72};
-    posit b = {68};
+    posit b = {78};
 
-    printf("Addition: %d\n", addition(a, b));
+    printPosit(b);
 
     return 0;
 }
