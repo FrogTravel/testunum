@@ -116,6 +116,12 @@ uint32_t getFraction(posit num) {
     return num.val & getMaskFromInt(sizeOfFraction);
 }
 
+/**
+ * Ам, ну я в итоге подключила math.h, но раз уж написала то пусть лежит. Просто возведение в степень
+ * @param base
+ * @param p
+ * @return
+ */
 int intPow(int base, int p) {
     if (p != 0) {
         return intPow(base * base, p - 1);
@@ -163,7 +169,7 @@ posit addition(posit valueA, posit valueB) {
 
     uint32_t resultFraction = (shiftedFraction + a_frac) & getMaskFromInt(3);
 
-    posit result = {(a.val & (getMaskFromInt(5) << 3)) | resultFraction};
+    posit result = {(a.val & (getMaskFromInt(5) << 3)) | resultFraction};//TODO вообще не помню откуда вылезла 5
     return result;
 }
 
@@ -191,6 +197,12 @@ int sizeOfNumberInBinary(int number) {
     return result;
 }
 
+/**
+ * Генерация побитово regime из переданного значения режима
+ * TODO сделать для 0
+ * @param number
+ * @return
+ */
 uint32_t getRegimeFromValue(int number){
     uint32_t result = 0;
     if(number >= 0){
@@ -255,6 +267,10 @@ posit multiplication(posit valueA, posit valueB) {
     return result;
 }
 
+/**
+ * Util для более печати posit
+ * @param number
+ */
 void printPosit(posit number) {
     uint32_t regime = getRegime(number);
     uint32_t exponent = getExponent(number);
