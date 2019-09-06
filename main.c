@@ -8,7 +8,7 @@ typedef struct _posit32 {
 } posit;
 
 int sizeOfPosit = 8;
-int es = 2;
+int es = 2;// максимум 4 иначе не влезет
 int useed = 16;
 
 /**
@@ -136,7 +136,7 @@ uint32_t getRegime(posit num){
 }
 
 /**
- * TODO проверить сортировку двух чисел по возрастанию
+ * TODO проверить сортировку двух чисел по убыванию
  * @return
  */
 posit addition(posit valueA, posit valueB){
@@ -147,8 +147,8 @@ posit addition(posit valueA, posit valueB){
         posit b = valueA;
     }
 
-    uint32_t a_frac = (1 << getFractionSize(a)) | getFraction(a); // 1100
-    uint32_t b_frac = (1 << getFractionSize(b)) | getFraction(b); // 1100
+    uint32_t a_frac = (1 << getFractionSize(a)) | getFraction(a);
+    uint32_t b_frac = (1 << getFractionSize(b)) | getFraction(b);
 
     uint32_t regimeLeft = getRegime(a);
     uint32_t regimeRight = getRegime(b);
@@ -166,6 +166,24 @@ posit addition(posit valueA, posit valueB){
     return result;
 }
 
+
+/**
+ * TODO проверить нужно ли сортировать
+ *
+ * @param valueA
+ * @param valueB
+ * @return
+ */
+posit multiplication (posit valueA, posit valueB){
+    posit a = valueA;
+    posit b = valueB;
+    if(valueA.val < valueB.val) {
+        posit a = valueB;
+        posit b = valueA;
+    }
+
+
+}
 
 int main() {
     posit a = {72};
