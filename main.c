@@ -85,6 +85,41 @@ uint32_t getExponent(posit num) {
     return (first_num & getExponentMask()) >> (sizeOfPosit - getExponentSize());
 }
 
+
+/**
+ * TODO а что если число regime начиналось на 0, тогда при сложении новых нулей не прибавится. Какой тогда должен быть размер
+ * Нужно генерировать новый regime в таком случае?
+ * @param number
+ * @return
+ */
+int sizeOfNumberInBinary(int number) {
+    int result = 0;
+    while (number > 0) {
+        number >>= 1;
+        result++;
+    }
+    return result;
+}
+
+/**
+ * Генерация побитово regime из переданного значения режима
+ * TODO сделать для 0
+ * @param number
+ * @return
+ */
+uint32_t getRegimeFromValue(int number) {
+    uint32_t result = 0;
+    if (number >= 0) {
+        result = 1;
+        for (int i = number; i > 0; i--) {
+            result = result << 1;
+            result |= 1;
+        }
+        result = result << 1;
+    }
+    return result;
+}
+
 /**
  * Generating mask from int because it is very convenient in this case
  * example:
@@ -150,8 +185,8 @@ posit addition(posit valueA, posit valueB) {
     posit a = valueA;
     posit b = valueB;
     if (valueA.val < valueB.val) {
-        posit a = valueB;
-        posit b = valueA;
+        a = valueB;
+        b = valueA;
     }
 
     uint32_t a_frac = (1 << getFractionSize(a)) | getFraction(a);
@@ -162,14 +197,32 @@ posit addition(posit valueA, posit valueB) {
 
     uint32_t expLeft = getExponent(a);
     uint32_t expRight = getExponent(b);
+    uint32_t expResult = expLeft;
+    uint32_t regimeResult = getRegimeFromValue(regimeLeft);
 
     uint32_t howMuchToShift = (regimeLeft - regimeRight) * intPow(2, es) + (expLeft - expRight);
 
     uint32_t shiftedFraction = b_frac >> howMuchToShift;
 
-    uint32_t resultFraction = (shiftedFraction + a_frac) & getMaskFromInt(3);
+    uint32_t tempFraction = shiftedFraction + a_frac;
 
-    posit result = {(a.val & (getMaskFromInt(5) << 3)) | resultFraction};//TODO вообще не помню откуда вылезла 5
+    if(sizeOfNumberInBinary(tempFraction) > sizeOfNumberInBinary(fmax(a_frac, b_frac))){
+        expResult += 1;
+        if (expResult >= pow(es, 2)) {
+            regimeResult = getRegimeFromValue(regimeLeft + regimeRight + 1);
+            expResult = expResult - pow(es, 2);
+        }
+
+        tempFraction = tempFraction >> 1;
+    }
+
+    uint32_t fractionResult = (tempFraction) & getMaskFromInt(sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - es);
+    posit result = {
+            regimeResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult)) |
+            expResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - es) |
+            fractionResult};
+
+    //posit result = {(a.val & (getMaskFromInt(5) << 3)) | resultFraction};//TODO вообще не помню откуда вылезла 5
     return result;
 }
 
@@ -182,39 +235,6 @@ int numberOfDigitsInNumber(int number) {
     return result;
 }
 
-/**
- * TODO а что если число regime начиналось на 0, тогда при сложении новых нулей не прибавится. Какой тогда должен быть размер
- * Нужно генерировать новый regime в таком случае?
- * @param number
- * @return
- */
-int sizeOfNumberInBinary(int number) {
-    int result = 0;
-    while (number > 0) {
-        number >>= 1;
-        result++;
-    }
-    return result;
-}
-
-/**
- * Генерация побитово regime из переданного значения режима
- * TODO сделать для 0
- * @param number
- * @return
- */
-uint32_t getRegimeFromValue(int number){
-    uint32_t result = 0;
-    if(number >= 0){
-        result = 1;
-        for(int i = number; i > 0; i--){
-            result = result << 1;
-            result |= 1;
-        }
-        result = result << 1;
-    }
-    return result;
-}
 
 /**
  * Здесь не нужно так много переменных, но мне так удобнее ориентироваться в происходящем
@@ -253,7 +273,7 @@ posit multiplication(posit valueA, posit valueB) {
     uint32_t signResult = signLeft | signRight;
     uint32_t regimeResult = getRegimeFromValue(regimeLeft + regimeRight);
     uint32_t expResult = expLeft + expRight;
-    if(expResult >= pow(es, 2)){
+    if (expResult >= pow(es, 2)) {
         regimeResult = getRegimeFromValue(regimeLeft + regimeRight + 1);
         expResult = expResult - pow(es, 2);
     }
@@ -263,14 +283,17 @@ posit multiplication(posit valueA, posit valueB) {
     uint32_t fracTemp3 = fractionLeft * fractionRight;
     uint32_t fractionResultTemp = fracTemp1 + fracTemp2 + fracTemp3;
 
-    uint32_t sizeOfResultFraction = sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult);
+    uint32_t sizeOfResultFraction =
+            sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult);
     uint32_t howMuchToShift = 0;
-    if (sizeOfNumberInBinary(fractionResultTemp) <= fractionSizeLeft + fractionSizeRight){
-        howMuchToShift = fmax(fractionSizeLeft, fractionSizeRight) + (sizeOfNumberInBinary(regimeResult) - (fmax(regimeSizeLeft, regimeSizeRight) + 1));
-    }else{
+    if (sizeOfNumberInBinary(fractionResultTemp) <= fractionSizeLeft + fractionSizeRight) {
+        howMuchToShift = fmax(fractionSizeLeft, fractionSizeRight) +
+                         (sizeOfNumberInBinary(regimeResult) - (fmax(regimeSizeLeft, regimeSizeRight) + 1));
+    } else {
         howMuchToShift = sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction;
     }
-    uint32_t fractionResult = fractionResultTemp >> howMuchToShift;/*(int) fabs(sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction);*/
+    uint32_t fractionResult = fractionResultTemp
+            >> howMuchToShift;/*(int) fabs(sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction);*/
 
     posit result = {
             regimeResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult)) |
@@ -299,7 +322,12 @@ void printPosit(posit number) {
     printf("%f", result);
 }
 
-double getDoubleFromPosit(posit number){
+/**
+ * Чисто для тестов
+ * @param number чиселка с которой работаем
+ * @return дабл значение для чиселки
+ */
+double getDoubleFromPosit(posit number) {
     uint32_t regime = getRegime(number);
     uint32_t exponent = getExponent(number);
     uint32_t fraction = getFraction(number);
@@ -334,9 +362,17 @@ void printMultiplicationPosit(posit a, posit b, posit result) {
     printf("\n");
 }
 
-int isAvailableInAnswers(double answers[], int size, double answer){
-    for(int i = 0; i < size; i++){
-        if(answers[i] == answer){
+/**
+ * Есть ли ответ в возможных ответах
+ * Примитивный поиск по массиву
+ * @param answers все возможные ответы
+ * @param size размер массива
+ * @param answer наш ответ западу
+ * @return 1 если возможен такой ответ и 0 если невозможет
+ */
+int isAvailableInAnswers(double answers[], int size, double answer) {
+    for (int i = 0; i < size; i++) {
+        if (answers[i] == answer) {
             return 1;
         }
     }
@@ -351,21 +387,21 @@ int isAvailableInAnswers(double answers[], int size, double answer){
  * Считает сколько правильно а сколько неправильно
  * TODO 6 тестов все еще не проходит
  */
-void multiplyTests(){
+void multiplyTests() {
     int rightAnswers = 0;
     int totalTests = 0;
 
     double possibleAnswers[49];
     int index = 0;
-    for(int i = 64; i < 113; i++){
+    for (int i = 64; i < 113; i++) {
         posit a = {i};
         possibleAnswers[index] = getDoubleFromPosit(a);
         index++;
     }
 
 
-    for(int i = 64; i < 87; i++){
-        for(int j = 64; j < 87; j++){
+    for (int i = 64; i < 87; i++) {
+        for (int j = 64; j < 87; j++) {
             posit a = {i};
             posit b = {j};
 
@@ -374,20 +410,20 @@ void multiplyTests(){
             double dResult = getDoubleFromPosit(result);
             double rightAnswer = getDoubleFromPosit(a) * getDoubleFromPosit(b);
 
-            if(dResult == rightAnswer){
+            if (dResult == rightAnswer) {
                 rightAnswers++;
                 totalTests++;
-            }else{
+            } else {
                 printf("-------------------- WRONG --------------------\n");
                 int isAvailable = isAvailableInAnswers(possibleAnswers, 49, rightAnswer);
                 printf("IS AVAILABLE %d\n", isAvailable);
-                if(isAvailable == 1){
+                if (isAvailable == 1) {
                     totalTests++;
                 }
             }
 
 
-            if (getExponent(a) > 1 && getExponent(b) > 1){
+            if (getExponent(a) > 1 && getExponent(b) > 1) {
                 printf("\nBIG EXPONENT: %d\n", getExponent(a));
             }
 
@@ -401,16 +437,62 @@ void multiplyTests(){
 
 }
 
+void additionTests() {
+    int rightAnswers = 0;
+    int totalTests = 0;
+
+    double possibleAnswers[49];
+    int index = 0;
+    for (int i = 64; i < 113; i++) {
+        posit a = {i};
+        possibleAnswers[index] = getDoubleFromPosit(a);
+        index++;
+    }
+
+
+    for (int i = 64; i < 87; i++) {
+        for (int j = 64; j < 87; j++) {
+            posit a = {i};
+            posit b = {j};
+
+            posit result = addition(a, b);
+
+            double dResult = getDoubleFromPosit(result);
+            double rightAnswer = getDoubleFromPosit(a) + getDoubleFromPosit(b);
+
+            if (dResult == rightAnswer) {
+                rightAnswers++;
+                totalTests++;
+            } else {
+                printf("-------------------- WRONG --------------------\n");
+                int isAvailable = isAvailableInAnswers(possibleAnswers, 49, rightAnswer);
+                printf("IS AVAILABLE %d\n", isAvailable);
+                if (isAvailable == 1) {
+                    totalTests++;
+                }
+            }
+
+
+            printf("Test for : %d, %d, %d\n", i, j, result.val);
+            printAdditionPosit(a, b, result);
+            printf("\n\n");
+        }
+    }
+
+    printf("Test result: %d/%d\n", rightAnswers, totalTests);
+}
+
 int main() {
-    multiplyTests();
-//    posit a = {68};
-//    posit b = {68};
+//    multiplyTests();
+    additionTests();
+//    posit a = {86};
+//    posit b = {80};
 //
-//    posit result = multiplication(a, b);
+//    posit result = addition(a, b);
 //
 //    printf("%d\n", result.val);
 //
-//    printMultiplicationPosit(a, b, result);
+//    printAdditionPosit(a, b, result);
 
 //    posit a = {112};
 //    posit b = {113};
