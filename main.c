@@ -19,7 +19,7 @@ int useed = 16;// 2 ^ (2 ^ es)
  * @return the bit for specified number
  */
 uint32_t getBitOnPosition(int position, posit number) {
-    return ((number.val << position) & 128) >> (sizeOfPosit - 1);
+    return ((number.val << position) & (1 << sizeOfPosit - 1)) >> (sizeOfPosit - 1);
 }
 
 /**
