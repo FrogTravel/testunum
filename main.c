@@ -343,6 +343,14 @@ int isAvailableInAnswers(double answers[], int size, double answer){
     return 0;
 }
 
+/**
+ * Тесты для проверки качества работы перемножения
+ * Генерирует все возможные значения posit
+ * Перемножает
+ * Проверяет возможен ли вообще правильный ответ так как может точность быть меньше чем нужно
+ * Считает сколько правильно а сколько неправильно
+ * TODO 6 тестов все еще не проходит
+ */
 void multiplyTests(){
     int rightAnswers = 0;
     int totalTests = 0;
@@ -368,11 +376,16 @@ void multiplyTests(){
 
             if(dResult == rightAnswer){
                 rightAnswers++;
+                totalTests++;
             }else{
                 printf("-------------------- WRONG --------------------\n");
-                printf("IS AVAILABLE %d\n", isAvailableInAnswers(possibleAnswers, 49, rightAnswer));
+                int isAvailable = isAvailableInAnswers(possibleAnswers, 49, rightAnswer);
+                printf("IS AVAILABLE %d\n", isAvailable);
+                if(isAvailable == 1){
+                    totalTests++;
+                }
             }
-            totalTests++;
+
 
             if (getExponent(a) > 1 && getExponent(b) > 1){
                 printf("\nBIG EXPONENT: %d\n", getExponent(a));
@@ -388,17 +401,16 @@ void multiplyTests(){
 
 }
 
-
 int main() {
-//    multiplyTests();
-    posit a = {68};
-    posit b = {68};
-
-    posit result = multiplication(a, b);
-
-    printf("%d\n", result.val);
-
-    printMultiplicationPosit(a, b, result);
+    multiplyTests();
+//    posit a = {68};
+//    posit b = {68};
+//
+//    posit result = multiplication(a, b);
+//
+//    printf("%d\n", result.val);
+//
+//    printMultiplicationPosit(a, b, result);
 
 //    posit a = {112};
 //    posit b = {113};
