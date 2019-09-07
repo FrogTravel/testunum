@@ -3,4 +3,4 @@ project(testunum C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(testunum main.c)
+add_executable(testunum atleastitried.c)

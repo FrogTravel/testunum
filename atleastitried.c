@@ -2,6 +2,14 @@
 #include <stdint.h>
 #include <math.h>
 
+#define BUFF_SIZE 33
+
+/**
+ * Я потратила на эту штуку тонну времени, но тупо не успела к дедлайну. Там в мэйне лежат тесты на умножение и сложение
+ * которое заиплеченченно. По сути не хватило некоторого времени на отладку, а главное на связку с твоими тестами.
+ * Сейчас здесь 8 бит, что бы сделать 32 нужно просто написать 32 в sizeOfPosit и хера себе - все работает
+ */
+
 typedef struct _posit32 {
     /** implement your code **/
     uint32_t val;
@@ -135,6 +143,66 @@ uint32_t getMaskFromInt(int number) {
         result |= 1;
     }
     return result;
+}
+
+posit encodePosit(int isNegative, int exp, unsigned int fraction) {
+    char buffer[BUFF_SIZE];
+    buffer[BUFF_SIZE - 1] = '\0';
+
+
+    posit result;
+    result.val = 0;
+    int exp_initial = exp;
+    exp = exp & 0b111;
+    int regime;
+    int regime_shifts;
+
+    if (exp_initial >= 0) {
+        regime = (((uint32_t)exp_initial) >> 3) + 1;
+
+        regime_shifts = regime;
+
+        for(int i = 0; i < regime; i++) {
+            result.val |= 1 << (30-i);
+        }
+    } else {
+        regime = ((uint32_t)-(exp_initial - exp)) >> 3;
+        regime_shifts = regime;
+        result.val |= 1 << (30-regime);
+    }
+
+
+    result.val |= exp << (30-regime_shifts-3);
+
+    result.val |= fraction >> (1+regime_shifts+4);
+
+    if ((fraction >> (4+regime_shifts))&1) {
+        result.val += 1; // rounding
+    }
+
+    if (isNegative) {
+        result.val = ~result.val + 1;
+    }
+
+    return result;
+}
+
+posit convertDoubleToPosit(double input) {
+
+    if (input == 0.0) {
+        posit result;
+        result.val = 0;
+        return result;
+    }
+
+    union {
+        double input;
+        uint64_t bits;
+    } val;
+    val.input = input;
+    int exp = (int)((val.bits >> 52)&0x7FF) - 1023; // substract zero offset
+    uint32_t fraction = (uint32_t)((val.bits >> 20)&0xFFFFFFFF); // fit fraction into 32 bit container
+    return encodePosit(input < 0, exp, fraction);
 }
 
 uint32_t getFractionSize(posit num) {
@@ -301,6 +369,14 @@ posit multiplication(posit valueA, posit valueB) {
             (fractionResult)};
 
     return result;
+}
+
+posit powPosit(posit base, int p){
+    if (p != 0) {
+        return powPosit(multiplication(base, base), p - 1);
+    } else {
+        return base;
+    }
 }
 
 /**
@@ -483,9 +559,9 @@ void additionTests() {
 }
 
 int main() {
-//    multiplyTests();
+    multiplyTests();
     additionTests();
-//    posit a = {86};
+  //  posit a = {68};
 //    posit b = {80};
 //
 //    posit result = addition(a, b);
@@ -494,11 +570,20 @@ int main() {
 //
 //    printAdditionPosit(a, b, result);
 
-//    posit a = {112};
+//    posit a = {72};
 //    posit b = {113};
 //
 //    printPosit(a);
 //    printPosit(b);
+//
+//    posit result = convertDoubleToPosit(1.5);
+//    printPosit(result);
+
+//    printPosit(a);
+//    printf("\n");
+//
+//    printPosit(powPosit(a, 1));
+    posit result = convertDoubleToPosit(1.5);
 
     return 0;
 }
