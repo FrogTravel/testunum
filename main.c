@@ -334,9 +334,28 @@ void printMultiplicationPosit(posit a, posit b, posit result) {
     printf("\n");
 }
 
+int isAvailableInAnswers(double answers[], int size, double answer){
+    for(int i = 0; i < size; i++){
+        if(answers[i] == answer){
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void multiplyTests(){
     int rightAnswers = 0;
     int totalTests = 0;
+
+    double possibleAnswers[49];
+    int index = 0;
+    for(int i = 64; i < 113; i++){
+        posit a = {i};
+        possibleAnswers[index] = getDoubleFromPosit(a);
+        index++;
+    }
+
+
     for(int i = 64; i < 87; i++){
         for(int j = 64; j < 87; j++){
             posit a = {i};
@@ -351,6 +370,7 @@ void multiplyTests(){
                 rightAnswers++;
             }else{
                 printf("-------------------- WRONG --------------------\n");
+                printf("IS AVAILABLE %d\n", isAvailableInAnswers(possibleAnswers, 49, rightAnswer));
             }
             totalTests++;
 
@@ -370,15 +390,15 @@ void multiplyTests(){
 
 
 int main() {
-    multiplyTests();
-//    posit a = {84};
-//    posit b = {80};
-//
-//    posit result = multiplication(a, b);
-//
-//    printf("%d\n", result.val);
-//
-//    printMultiplicationPosit(a, b, result);
+//    multiplyTests();
+    posit a = {68};
+    posit b = {68};
+
+    posit result = multiplication(a, b);
+
+    printf("%d\n", result.val);
+
+    printMultiplicationPosit(a, b, result);
 
 //    posit a = {112};
 //    posit b = {113};
