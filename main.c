@@ -238,6 +238,8 @@ posit multiplication(posit valueA, posit valueB) {
 
     uint32_t regimeLeft = getRegime(a);
     uint32_t regimeRight = getRegime(b);
+    uint32_t regimeSizeLeft = getRegimeSize(a);
+    uint32_t regimeSizeRight = getRegimeSize(b);
 
     uint32_t expLeft = getExponent(a);
     uint32_t expRight = getExponent(b);
@@ -251,17 +253,28 @@ posit multiplication(posit valueA, posit valueB) {
     uint32_t signResult = signLeft | signRight;
     uint32_t regimeResult = getRegimeFromValue(regimeLeft + regimeRight);
     uint32_t expResult = expLeft + expRight;
+    if(expResult >= pow(es, 2)){
+        regimeResult = getRegimeFromValue(regimeLeft + regimeRight + 1);
+        expResult = expResult - pow(es, 2);
+    }
+
     uint32_t fracTemp1 = fractionLeft << fractionSizeRight;
     uint32_t fracTemp2 = fractionRight << fractionSizeLeft;
     uint32_t fracTemp3 = fractionLeft * fractionRight;
     uint32_t fractionResultTemp = fracTemp1 + fracTemp2 + fracTemp3;
 
     uint32_t sizeOfResultFraction = sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult);
-    uint32_t fractionResult = fractionResultTemp >> (int) fabs(sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction);
+    uint32_t howMuchToShift = 0;
+    if (sizeOfNumberInBinary(fractionResultTemp) <= fractionSizeLeft + fractionSizeRight){
+        howMuchToShift = fmax(fractionSizeLeft, fractionSizeRight) + (sizeOfNumberInBinary(regimeResult) - (fmax(regimeSizeLeft, regimeSizeRight) + 1));
+    }else{
+        howMuchToShift = sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction;
+    }
+    uint32_t fractionResult = fractionResultTemp >> howMuchToShift;/*(int) fabs(sizeOfNumberInBinary(fractionResultTemp) - sizeOfResultFraction);*/
 
     posit result = {
             regimeResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult)) |
-            expResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - sizeOfNumberInBinary(expResult)) |
+            expResult << (sizeOfPosit - 1 - sizeOfNumberInBinary(regimeResult) - es) |
             (fractionResult)};
 
     return result;
@@ -286,6 +299,21 @@ void printPosit(posit number) {
     printf("%f", result);
 }
 
+double getDoubleFromPosit(posit number){
+    uint32_t regime = getRegime(number);
+    uint32_t exponent = getExponent(number);
+    uint32_t fraction = getFraction(number);
+    uint32_t fractionSize = getFractionSize(number);
+
+    double useedPart = pow(useed, regime);
+    double exponentPart = pow(2, exponent);
+    double fractionPart = 1 + (fraction / (pow(2, fractionSize)));
+
+    double result = useedPart * exponentPart * fractionPart;
+
+    return result;
+}
+
 void printAdditionPosit(posit a, posit b, posit result) {
     printf("Addition: ");
     printPosit(a);
@@ -306,17 +334,54 @@ void printMultiplicationPosit(posit a, posit b, posit result) {
     printf("\n");
 }
 
+void multiplyTests(){
+    int rightAnswers = 0;
+    int totalTests = 0;
+    for(int i = 64; i < 87; i++){
+        for(int j = 64; j < 87; j++){
+            posit a = {i};
+            posit b = {j};
+
+            posit result = multiplication(a, b);
+
+            double dResult = getDoubleFromPosit(result);
+            double rightAnswer = getDoubleFromPosit(a) * getDoubleFromPosit(b);
+
+            if(dResult == rightAnswer){
+                rightAnswers++;
+            }else{
+                printf("-------------------- WRONG --------------------\n");
+            }
+            totalTests++;
+
+            if (getExponent(a) > 1 && getExponent(b) > 1){
+                printf("\nBIG EXPONENT: %d\n", getExponent(a));
+            }
+
+            printf("Test for : %d, %d, %d\n", i, j, result.val);
+            printMultiplicationPosit(a, b, result);
+            printf("\n\n");
+        }
+    }
+
+    printf("Test result: %d/%d\n", rightAnswers, totalTests);
+
+}
+
 
 int main() {
-    posit a = {72};
-    posit b = {78};
+    multiplyTests();
+//    posit a = {84};
+//    posit b = {80};
+//
+//    posit result = multiplication(a, b);
+//
+//    printf("%d\n", result.val);
+//
+//    printMultiplicationPosit(a, b, result);
 
-    posit result = multiplication(a, b);
-
-    printMultiplicationPosit(a, b, result);
-
-//    posit a = {86};
-//    posit b = {92};
+//    posit a = {112};
+//    posit b = {113};
 //
 //    printPosit(a);
 //    printPosit(b);
